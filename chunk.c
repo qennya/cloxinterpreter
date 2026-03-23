@@ -1,7 +1,9 @@
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "chunk.h"
 #include "memory.h"
+#include "value.h"
 
 void initChunk(Chunk* chunk) {
     chunk->count = 0; //we start with 0
@@ -37,4 +39,21 @@ void writeChunk(Chunk* chunk, uint8_t byte, int line) {
 int addConstant(Chunk* chunk, Value value) {
     writeValueArray(&chunk->constants, value);
     return chunk->constants.count - 1;
+}
+
+void writeConstant(Chunk* chunk, Value value, int line) {
+    int constantIndex = addConstant(chunk, value);
+
+    if (constantIndex <= UINT8_MAX) {
+        writeChunk(chunk, OP_CONSTANT, line);
+        writeChunk(chunk, (uint8_t)constantIndex, line);
+    } else if (constantIndex <= 0xFFFFFF) {
+        writeChunk(chunk, OP_CONSTANT_LONG, line);
+        writeChunk(chunk, (constantIndex >> 16) & 0xFF, line);
+        writeChunk(chunk, (constantIndex >> 8) & 0xFF, line);
+        writeChunk(chunk, constantIndex & 0xFF, line);
+    } else {
+        fprintf(stderr, "Too many constants in one chunk.\n");
+        exit(1);
+    }
 }
