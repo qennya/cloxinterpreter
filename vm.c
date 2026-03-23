@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "common.h"
 #include "debug.h"
@@ -10,15 +11,42 @@ static void resetStack() {
     vm.stackTop = vm.stack;
 }
 
+#define INITIAL_STACK_CAPACITY 8
+
 void initVM() {
-    resetStack();
+    vm.stackCapacity = INITIAL_STACK_CAPACITY;
+    vm.stack = malloc(sizeof(Value) * vm.stackCapacity);
+    vm.stackTop = vm.stack;
 }
 
 void freeVM() {
+    free(vm.stack);
+}
 
+static void growStack() {
+    int oldCount = (int)(vm.stackTop - vm.stack);
+    int newCapacity = vm.stackCapacity * 2;
+
+    printf("Growing stack from %d to %d\n", vm.stackCapacity, newCapacity);
+
+    Value* newStack = realloc(vm.stack, sizeof(Value) * newCapacity);
+    if (newStack == NULL) {
+        fprintf(stderr, "Could not grow stack.\n");
+        exit(1);
+    }
+
+    vm.stack = newStack;
+    vm.stackTop = vm.stack + oldCount;
+    vm.stackCapacity = newCapacity;
 }
 
 void push(Value value) {
+    int count = (int)(vm.stackTop - vm.stack);
+
+    if (count >= vm.stackCapacity) {
+        growStack();
+    }
+
     *vm.stackTop = value;
     vm.stackTop++;
 }
@@ -78,7 +106,6 @@ push(a op b); \
 #undef READ_CONSTANT
 #undef BINARY_OP
 }
-
 
 InterpretResult interpret(Chunk* chunk) {
     vm.chunk = chunk;
