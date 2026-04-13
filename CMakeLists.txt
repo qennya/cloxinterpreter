@@ -3,8 +3,8 @@ project(clox C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(clox
-        main.c
+# The shared source files (everything except main entry points)
+set(CLOX_SOURCES
         chunk.c
         debug.c
         value.c
@@ -14,4 +14,16 @@ add_executable(clox
         scanner.c
         object.c
         table.c
+)
+
+# Original clox interpreter
+add_executable(clox
+        main.c
+        ${CLOX_SOURCES}
+)
+
+# Benchmark executable
+add_executable(bench
+        bench.c
+        ${CLOX_SOURCES}
 )
