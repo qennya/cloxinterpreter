@@ -111,6 +111,7 @@ push(valueType(a op b)); \
             case OP_NIL: push(NIL_VAL); break;
             case OP_TRUE: push(BOOL_VAL(true)); break;
             case OP_FALSE: push(BOOL_VAL(false)); break;
+            case OP_POP: pop(); break;
             case OP_EQUAL: {
                 Value b = pop();
                 Value a = pop();
@@ -147,9 +148,14 @@ push(valueType(a op b)); \
                 push(NUMBER_VAL(-AS_NUMBER(pop())));
                 break;
 
-            case OP_RETURN: {
+            case OP_PRINT: {
                 printValue(pop());
                 printf("\n");
+                break;
+            }
+
+            case OP_RETURN: {
+                // Exit interpreter.
                 return INTERPRET_OK;
             }
         }
