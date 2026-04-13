@@ -42,6 +42,7 @@ typedef struct {
 typedef struct {
     Token name;
     int depth;
+    bool isConst;
 } Local;
 
 typedef struct {
@@ -202,7 +203,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
     return -1;
 }
 
-static void addLocal(Token name) {
+static void addLocal(Token name, bool isConst) {
     if (current->localCount == UINT8_COUNT) {
         error("Too many local variables in function.");
         return;
@@ -211,9 +212,10 @@ static void addLocal(Token name) {
     Local* local = &current->locals[current->localCount++];
     local->name = name;
     local->depth = -1;
+    local->isConst = isConst;
 }
 
-static void declareVariable() {
+static void declareVariable(bool isConst) {
     if (current->scopeDepth == 0) return;
 
     Token* name = &parser.previous;
@@ -228,14 +230,13 @@ static void declareVariable() {
             error("Already a variable with this name in this scope.");
         }
     }
-
-    addLocal(*name);
+       addLocal(*name, isConst);
 }
 
-static uint8_t parseVariable(const char* errorMessage) {
+static uint8_t parseVariable(const char* errorMessage, bool isConst) {
     consume(TOKEN_IDENTIFIER, errorMessage);
 
-    declareVariable();
+    declareVariable(isConst);
     if (current->scopeDepth > 0) return 0;
 
     return identifierConstant(&parser.previous);
@@ -302,7 +303,8 @@ static void block() {
 }
 
 static void varDeclaration() {
-    uint8_t global = parseVariable("Expect variable name.");
+    bool isConst = parser.previous.type == TOKEN_CONST;
+    uint8_t global = parseVariable("Expect variable name.", isConst);
 
     if (match(TOKEN_EQUAL)) {
         expression();
@@ -352,7 +354,7 @@ static void synchronize() {
 }
 
 static void declaration() {
-    if (match(TOKEN_VAR)) {
+    if (match(TOKEN_VAR) || match(TOKEN_CONST)) {
         varDeclaration();
     } else {
         statement();
@@ -390,6 +392,10 @@ static void namedVariable(Token name, bool canAssign) {
     if (arg != -1) {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
+
+        if (canAssign && current->locals[arg].isConst) {
+            error("Cannot assign to a const variable.");
+        }
     } else {
         arg = identifierConstant(&name);
         getOp = OP_GET_GLOBAL;
