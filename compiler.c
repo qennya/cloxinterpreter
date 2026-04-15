@@ -648,7 +648,7 @@ ObjFunction* compile(const char* source) {
     Compiler compiler;
     initCompiler(&compiler, TYPE_SCRIPT);
 
-    // compilingChunk = chunk;
+    compilingChunk = chunk;
 
     parser.hadError = false;
     parser.panicMode = false;
