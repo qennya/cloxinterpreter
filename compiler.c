@@ -50,9 +50,18 @@ typedef struct {
     int scopeDepth;
 } Compiler;
 
+#define MAX_CONTINUE_JUMPS 256
+typedef struct {
+    int continueTarget;       // -1 = not in a loop
+    int continueJumps[MAX_CONTINUE_JUMPS];
+    int continueJumpCount;
+    int loopScopeDepth;
+} LoopContext;
+
 Parser parser;
 Compiler* current = NULL;
 Chunk* compilingChunk;
+LoopContext loopCtx = { -1, {0}, 0, 0 };
 
 static Chunk* currentChunk() {
     return compilingChunk;
@@ -366,7 +375,6 @@ static void forStatement() {
     beginScope();
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
     if (match(TOKEN_SEMICOLON)) {
-        // No initializer.
     } else if (match(TOKEN_VAR)) {
         varDeclaration();
     } else {
@@ -378,14 +386,22 @@ static void forStatement() {
     if (!match(TOKEN_SEMICOLON)) {
         expression();
         consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
-
-        // Jump out of the loop if the condition is false.
         exitJump = emitJump(OP_JUMP_IF_FALSE);
         emitByte(OP_POP); // Condition.
     }
+
+    LoopContext enclosing = loopCtx;
+    loopCtx.continueJumpCount = 0;
+    loopCtx.loopScopeDepth = current->scopeDepth;
+
     if (!match(TOKEN_RIGHT_PAREN)) {
+        // Increment clause exists: jump over it to body first.
         int bodyJump = emitJump(OP_JUMP);
         int incrementStart = currentChunk()->count;
+
+        // continue should land here (at the increment).
+        loopCtx.continueTarget = incrementStart;
+
         expression();
         emitByte(OP_POP);
         consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
@@ -393,16 +409,19 @@ static void forStatement() {
         emitLoop(loopStart);
         loopStart = incrementStart;
         patchJump(bodyJump);
-    }
 
-    statement();
+        statement();
+    } else {        // No increment: continue goes to the condition.
+        loopCtx.continueTarget = loopStart;
+        statement();
+    }
     emitLoop(loopStart);
 
     if (exitJump != -1) {
         patchJump(exitJump);
         emitByte(OP_POP); // Condition.
     }
-
+    loopCtx = enclosing;
     endScope();
 }
 
@@ -432,6 +451,13 @@ static void printStatement() {
 
 static void whileStatement() {
     int loopStart = currentChunk()->count;
+
+    // Save and set loop context.
+    LoopContext enclosing = loopCtx;
+    loopCtx.continueTarget = loopStart;
+    loopCtx.continueJumpCount = 0;
+    loopCtx.loopScopeDepth = current->scopeDepth;
+
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -443,6 +469,28 @@ static void whileStatement() {
 
     patchJump(exitJump);
     emitByte(OP_POP);
+
+    // Restore enclosing loop context.
+    loopCtx = enclosing;
+}
+
+static void continueStatement() {
+    if (loopCtx.continueTarget == -1) {
+        error("Can't use 'continue' outside of a loop.");
+        return;
+    }
+    consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+
+    // Pop any locals declared inside the loop body since the loop began.
+    for (int i = current->localCount - 1;
+         i >= 0 && current->locals[i].depth > loopCtx.loopScopeDepth;
+         i--) {
+        emitByte(OP_POP);
+    }
+
+    // Jump back to the continue target (condition for while,
+    // increment for for-with-increment, condition for for-without).
+    emitLoop(loopCtx.continueTarget);
 }
 
 static void synchronize() {
@@ -482,7 +530,9 @@ static void declaration() {
 static void statement() {
     if (match(TOKEN_PRINT)) {
         printStatement();
-    }  else if (match(TOKEN_FOR)) {
+    } else if (match(TOKEN_CONTINUE)) {
+        continueStatement();
+    } else if (match(TOKEN_FOR)) {
         forStatement();
     } else if (match(TOKEN_IF)) {
         ifStatement();
@@ -593,6 +643,7 @@ ParseRule rules[] = {
     [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
     [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_CONTINUE]      = {NULL,     NULL,   PREC_NONE},
     [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
 };
@@ -642,4 +693,3 @@ bool compile(const char* source, Chunk* chunk) {
     endCompiler();
     return !parser.hadError;
 }
-
