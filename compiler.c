@@ -445,6 +445,65 @@ static void whileStatement() {
     emitByte(OP_POP);
 }
 
+static void switchStatement() {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+    expression();  // Push switch value onto stack
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after switch value.");
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before switch cases.");
+
+    // We collect a list of jumps to patch to the end of the switch.
+    // Max 256 cases for simplicity.
+    int endJumps[256];
+    int endJumpCount = 0;
+
+    while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_DEFAULT) && !check(TOKEN_EOF)) {
+        consume(TOKEN_CASE, "Expect 'case' or 'default'.");
+
+        // Duplicate switch value so we can compare without consuming it.
+        emitByte(OP_DUP);
+        expression();  // Push case value
+        consume(TOKEN_COLON, "Expect ':' after case value.");
+        emitByte(OP_EQUAL);
+
+        // If not equal, jump past this case's body.
+        int skipJump = emitJump(OP_JUMP_IF_FALSE);
+        emitByte(OP_POP);  // Pop the 'true' result
+
+        // Execute statements for this case.
+        while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
+               !check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+            statement();
+        }
+
+        // After case body, jump to end of switch.
+        if (endJumpCount < 256) {
+            endJumps[endJumpCount++] = emitJump(OP_JUMP);
+        }
+
+        // Patch the skip jump to here (start of next case).
+        patchJump(skipJump);
+        emitByte(OP_POP);  // Pop the 'false' result
+    }
+
+    // Optional default case.
+    if (match(TOKEN_DEFAULT)) {
+        consume(TOKEN_COLON, "Expect ':' after 'default'.");
+        while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+            statement();
+        }
+    }
+
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after switch cases.");
+
+    // Pop the switch value off the stack.
+    emitByte(OP_POP);
+
+    // Patch all end-of-case jumps to here.
+    for (int i = 0; i < endJumpCount; i++) {
+        patchJump(endJumps[i]);
+    }
+}
+
 static void synchronize() {
     parser.panicMode = false;
 
@@ -456,6 +515,7 @@ static void synchronize() {
             case TOKEN_VAR:
             case TOKEN_FOR:
             case TOKEN_IF:
+            case TOKEN_SWITCH:
             case TOKEN_WHILE:
             case TOKEN_PRINT:
             case TOKEN_RETURN:
@@ -482,7 +542,9 @@ static void declaration() {
 static void statement() {
     if (match(TOKEN_PRINT)) {
         printStatement();
-    }  else if (match(TOKEN_FOR)) {
+    } else if (match(TOKEN_SWITCH)) {
+        switchStatement();
+    } else if (match(TOKEN_FOR)) {
         forStatement();
     } else if (match(TOKEN_IF)) {
         ifStatement();
@@ -565,6 +627,7 @@ ParseRule rules[] = {
     [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
     [TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
     [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_COLON]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_SLASH]         = {NULL,     binary, PREC_FACTOR},
     [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},
     [TOKEN_BANG]          = {unary,    NULL,   PREC_NONE},
@@ -593,6 +656,9 @@ ParseRule rules[] = {
     [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
     [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_SWITCH]        = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_CASE]          = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_DEFAULT]       = {NULL,     NULL,   PREC_NONE},
     [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
 };
