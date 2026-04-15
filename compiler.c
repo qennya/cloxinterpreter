@@ -406,6 +406,28 @@ static void forStatement() {
     endScope();
 }
 
+static void unlessStatement() {
+    // `unless (cond) stmt` is equivalent to `if (!cond) stmt`
+    // We reuse the exact same bytecode pattern as ifStatement but
+    // swap the jump sense: jump over the body if condition is TRUE.
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'unless'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+    // Jump OVER the body if condition is truthy (opposite of if).
+    int skipJump = emitJump(OP_JUMP_IF_FALSE);
+    // Condition was TRUE — pop it and skip the body.
+    emitByte(OP_POP);
+    int overJump = emitJump(OP_JUMP);
+
+    // Condition was FALSE — execute the body.
+    patchJump(skipJump);
+    emitByte(OP_POP);
+    statement();
+
+    patchJump(overJump);
+}
+
 static void ifStatement() {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
@@ -482,7 +504,11 @@ static void declaration() {
 static void statement() {
     if (match(TOKEN_PRINT)) {
         printStatement();
-    }  else if (match(TOKEN_FOR)) {
+    } else if (match(TOKEN_IF)) {
+        ifStatement();
+    } else if (match(TOKEN_UNLESS)) {
+        unlessStatement();
+    } else if (match(TOKEN_FOR)) {
         forStatement();
     } else if (match(TOKEN_IF)) {
         ifStatement();
@@ -593,6 +619,7 @@ ParseRule rules[] = {
     [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
     [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_UNLESS]        = {NULL,     NULL,   PREC_NONE},
     [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
 };
@@ -642,4 +669,3 @@ bool compile(const char* source, Chunk* chunk) {
     endCompiler();
     return !parser.hadError;
 }
-
