@@ -8,8 +8,7 @@
 #include "table.h"
 
 #define ALLOCATE_OBJ(type, objectType) \
-(type*)allocateObject(sizeof(type), objectType)
-
+    (type*)allocateObject(sizeof(type), objectType)
 
 static Obj* allocateObject(size_t size, ObjType type) {
     Obj* object = (Obj*)reallocate(NULL, 0, size);
@@ -28,8 +27,9 @@ ObjFunction* newFunction() {
     return function;
 }
 
-ObjNative* newNative(NativeFn function) {
+ObjNative* newNative(int arity, NativeFn function) {
     ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+    native->arity = arity;
     native->function = function;
     return native;
 }
@@ -55,8 +55,7 @@ static uint32_t hashString(const char* key, int length) {
 ObjString* takeString(char* chars, int length) {
     uint32_t hash = hashString(chars, length);
 
-    ObjString* interned = tableFindString(&vm.strings, chars, length,
-                                      hash);
+    ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
     if (interned != NULL) {
         FREE_ARRAY(char, chars, length + 1);
         return interned;
@@ -68,8 +67,7 @@ ObjString* takeString(char* chars, int length) {
 ObjString* copyString(const char* chars, int length) {
     uint32_t hash = hashString(chars, length);
 
-    ObjString* interned = tableFindString(&vm.strings, chars, length,
-                                      hash);
+    ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
     if (interned != NULL) return interned;
 
     char* heapChars = ALLOCATE(char, length + 1);
