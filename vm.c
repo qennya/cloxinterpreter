@@ -142,11 +142,15 @@ static void concatenate() {
 static InterpretResult run() {
     CallFrame* frame = &vm.frames[vm.frameCount - 1];
 
-#define READ_BYTE() (*frame->ip++)
+    // LOCAL register variable — compiler hint to keep ip in a CPU register
+    register uint8_t* ip = frame->ip;
 
-#define READ_SHORT() \
-(frame->ip += 2, \
-(uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+#define STORE_FRAME_IP() (frame->ip = ip)
+#define LOAD_FRAME_IP()  (ip = frame->ip)
+
+    // READ_BYTE now uses local ip directly — no frame pointer indirection
+#define READ_BYTE() (*ip++)
+#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 
 #define READ_CONSTANT() \
 (frame->function->chunk.constants.values[READ_BYTE()])
@@ -284,22 +288,23 @@ push(valueType(a op b)); \
             }
             case OP_CALL: {
                 int argCount = READ_BYTE();
+                STORE_FRAME_IP();            // Save ip before callValue sets up new frame
                 if (!callValue(peek(argCount), argCount)) {
                     return INTERPRET_RUNTIME_ERROR;
                 }
+                frame = &vm.frames[vm.frameCount - 1];  // Point to newly pushed frame
+                LOAD_FRAME_IP();             // Load the new frame's ip into register
                 break;
             }
+
             case OP_RETURN: {
                 Value result = pop();
                 vm.frameCount--;
-                if (vm.frameCount == 0) {
-                    pop();
-                    return INTERPRET_OK;
-                }
-
+                if (vm.frameCount == 0) { pop(); return INTERPRET_OK; }
                 vm.stackTop = frame->slots;
                 push(result);
-                frame = &vm.frames[vm.frameCount - 1];
+                frame = &vm.frames[vm.frameCount - 1];  // Restore caller frame
+                LOAD_FRAME_IP();             // Load caller's saved ip into register
                 break;
             }
         }
