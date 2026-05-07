@@ -14,15 +14,24 @@ typedef struct {
     Value* slots;
 } CallFrame;
 
+// Add these fields to the VM struct:
 typedef struct {
     CallFrame frames[FRAMES_MAX];
     int frameCount;
+
     Value stack[STACK_MAX];
     Value* stackTop;
     Table globals;
     Table strings;
+    ObjString* initString;
     ObjUpvalue* openUpvalues;
+
+    size_t bytesAllocated;   // <-- NEW
+    size_t nextGC;           // <-- NEW
     Obj* objects;
+    int grayCount;           // <-- NEW
+    int grayCapacity;        // <-- NEW
+    Obj** grayStack;         // <-- NEW
 } VM;
 
 typedef enum {

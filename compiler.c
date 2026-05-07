@@ -5,6 +5,7 @@
 #include "common.h"
 #include "compiler.h"
 #include "scanner.h"
+#include "memory.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -350,6 +351,14 @@ static void markInitialized() {
   if (current->scopeDepth == 0) return;
   current->locals[current->localCount - 1].depth =
       current->scopeDepth;
+}
+
+void markCompilerRoots() {
+  Compiler* compiler = current;
+  while (compiler != NULL) {
+    markObject((Obj*)compiler->function);
+    compiler = compiler->enclosing;
+  }
 }
 
 static void defineVariable(uint8_t global) {
