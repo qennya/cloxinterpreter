@@ -356,6 +356,20 @@ static InterpretResult run() {
         push(value);
         break;
       }
+      case OP_DELETE_PROPERTY: {
+        if (!IS_INSTANCE(peek(0))) {
+          runtimeError("Only instances have fields.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjInstance* instance = AS_INSTANCE(peek(0));
+        ObjString* name = READ_STRING();
+
+        tableDelete(&instance->fields, name);
+        pop();  // instance
+        push(NIL_VAL);
+        break;
+      }
       case OP_EQUAL: {
         Value b = pop();
         Value a = pop();

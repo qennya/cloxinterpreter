@@ -534,6 +534,7 @@ ParseRule rules[] = {
   [TOKEN_SLASH]         = {NULL,     binary, PREC_FACTOR},
   [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},
   [TOKEN_BANG]          = {unary,    NULL,   PREC_NONE},
+  [TOKEN_DELETE] = {NULL, NULL, PREC_NONE},
   [TOKEN_BANG_EQUAL]    = {NULL,     binary, PREC_EQUALITY},
   [TOKEN_EQUAL]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EQUAL_EQUAL]   = {NULL,     binary, PREC_EQUALITY},
@@ -775,6 +776,7 @@ static void synchronize() {
     switch (parser.current.type) {
       case TOKEN_CLASS:
       case TOKEN_FUN:
+      case TOKEN_DELETE:
       case TOKEN_VAR:
       case TOKEN_FOR:
       case TOKEN_IF:
@@ -805,9 +807,21 @@ static void declaration() {
 
   if (parser.panicMode) synchronize();
 }
+static void deleteStatement() {
+  expression();  // compile the object
+
+  consume(TOKEN_DOT, "Expect '.' after object in delete statement.");
+  consume(TOKEN_IDENTIFIER, "Expect field name after '.'.");
+  uint8_t name = identifierConstant(&parser.previous);
+
+  consume(TOKEN_SEMICOLON, "Expect ';' after delete statement.");
+  emitBytes(OP_DELETE_PROPERTY, name);
+}
 
 static void statement() {
-  if (match(TOKEN_PRINT)) {
+  if (match(TOKEN_DELETE)) {
+    deleteStatement();
+  } else if (match(TOKEN_PRINT)) {
     printStatement();
   } else if (match(TOKEN_FOR)) {
     forStatement();
