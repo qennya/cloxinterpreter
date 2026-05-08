@@ -133,6 +133,10 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return constantInstruction("OP_SET_PROPERTY", chunk, offset);
     case OP_CLASS:
       return constantInstruction("OP_CLASS", chunk, offset);
+    case OP_GET_PROPERTY_DYNAMIC:
+      return simpleInstruction("OP_GET_PROPERTY_DYNAMIC", offset);
+    case OP_SET_PROPERTY_DYNAMIC:
+      return simpleInstruction("OP_SET_PROPERTY_DYNAMIC", offset);
     default:
       printf("Unknown opcode %d\n", instruction);
       return offset + 1;

@@ -245,6 +245,7 @@ static void statement();
 static void declaration();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static void subscript(bool canAssign);
 
 static uint8_t identifierConstant(Token* name) {
   return makeConstant(OBJ_VAL(copyString(name->start,
@@ -432,6 +433,18 @@ static void dot(bool canAssign) {
   }
 }
 
+static void subscript(bool canAssign) {
+  expression();  // compile the key expression
+  consume(TOKEN_RIGHT_BRACKET, "Expect ']' after field name.");
+
+  if (canAssign && match(TOKEN_EQUAL)) {
+    expression();  // compile the value
+    emitByte(OP_SET_PROPERTY_DYNAMIC);
+  } else {
+    emitByte(OP_GET_PROPERTY_DYNAMIC);
+  }
+}
+
 static void literal(bool canAssign) {
   switch (parser.previous.type) {
     case TOKEN_FALSE: emitByte(OP_FALSE); break;
@@ -512,6 +525,7 @@ ParseRule rules[] = {
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
   [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_LEFT_BRACKET]  = {NULL, subscript, PREC_CALL},
   [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_DOT]           = {NULL,     dot,    PREC_CALL},
   [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},

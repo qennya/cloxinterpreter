@@ -312,6 +312,50 @@ static InterpretResult run() {
         push(value);
         break;
       }
+      case OP_GET_PROPERTY_DYNAMIC: {
+        if (!IS_INSTANCE(peek(1))) {
+          runtimeError("Only instances have properties.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        if (!IS_STRING(peek(0))) {
+          runtimeError("Field name must be a string.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjString* name = AS_STRING(pop());
+        ObjInstance* instance = AS_INSTANCE(pop());
+
+        Value value;
+        if (tableGet(&instance->fields, name, &value)) {
+          push(value);
+          break;
+        }
+
+        push(NIL_VAL);  // or runtimeError if you prefer strict mode
+        break;
+      }
+
+      case OP_SET_PROPERTY_DYNAMIC: {
+        if (!IS_INSTANCE(peek(2))) {
+          runtimeError("Only instances have fields.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        if (!IS_STRING(peek(1))) {
+          runtimeError("Field name must be a string.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjInstance* instance = AS_INSTANCE(peek(2));
+        ObjString* name = AS_STRING(peek(1));
+        Value value = peek(0);
+
+        tableSet(&instance->fields, name, value);
+        pop(); // value
+        pop(); // name
+        pop(); // instance
+        push(value);
+        break;
+      }
       case OP_EQUAL: {
         Value b = pop();
         Value a = pop();
