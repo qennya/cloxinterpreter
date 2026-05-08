@@ -10,7 +10,11 @@
 #include "memory.h"
 #include "vm.h"
 
+
 VM vm;
+
+static void push(Value value);
+static Value pop();
 
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
@@ -79,13 +83,16 @@ void freeVM() {
 }
 
 void push(Value value) {
+  if (IS_OBJ(value)) incrementRef(AS_OBJ(value));
   *vm.stackTop = value;
   vm.stackTop++;
 }
 
-Value pop() {
+static Value pop() {
   vm.stackTop--;
-  return *vm.stackTop;
+  Value value = *vm.stackTop;
+  if (IS_OBJ(value)) decrementRef(AS_OBJ(value));
+  return value;
 }
 
 static Value peek(int distance) {

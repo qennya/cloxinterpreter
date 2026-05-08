@@ -25,4 +25,7 @@ void markValue(Value value);
 void collectGarbage();
 void freeObjects();
 
+void incrementRef(Obj* object);
+void decrementRef(Obj* object);
+
 #endif

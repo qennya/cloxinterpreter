@@ -207,3 +207,16 @@ void freeObjects() {
 
   free(vm.grayStack);
 }
+
+void incrementRef(Obj* object) {
+  if (object == NULL) return;
+  object->refCount++;
+}
+
+void decrementRef(Obj* object) {
+  if (object == NULL) return;
+  object->refCount--;
+  if (object->refCount == 0) {
+    freeObject(object);
+  }
+}
