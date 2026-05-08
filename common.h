@@ -7,8 +7,8 @@
 
 #define NAN_BOXING
 
-#define DEBUG_PRINT_CODE
-#define DEBUG_TRACE_EXECUTION
+//#define DEBUG_PRINT_CODE
+//#define DEBUG_TRACE_EXECUTION
 
 // Uncomment these to stress-test / log the GC:
 // #define DEBUG_STRESS_GC

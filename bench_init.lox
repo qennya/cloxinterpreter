@@ -1,0 +1,30 @@
+class Heavy {
+  init(a, b, c) {
+    this.a = a;
+    this.b = b;
+    this.c = c;
+  }
+}
+
+class Empty {}
+
+var start = clock();
+var i = 0;
+while (i < 100000) {
+  Heavy(1, 2, 3);
+  i = i + 1;
+}
+var withInit = clock() - start;
+
+start = clock();
+i = 0;
+while (i < 100000) {
+  Empty();
+  i = i + 1;
+}
+var noInit = clock() - start;
+
+print "With init (seconds):";
+print withInit;
+print "Without init (seconds):";
+print noInit;
