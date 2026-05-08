@@ -379,12 +379,42 @@ static InterpretResult run() {
         }
 
         ObjInstance* instance = AS_INSTANCE(peek(1));
-        tableSet(&instance->fields, READ_STRING(), peek(0));
-        Value value = pop();
-        pop();
-        push(value);
-        break;
+        ObjString* fieldName = READ_STRING();
+
+        // Check if we're in an init() and detect field ownership collisions
+        CallFrame* frame = &vm.frames[vm.frameCount - 1];
+        ObjString* initStr = copyString("init", 4);
+        bool inInit = frame->closure->function->name != NULL &&
+          (frame->closure->function->name == initStr);
+
+        if (inInit) {
+          // Determine which class this init() belongs to
+          ObjClass* currentInitClass = NULL;
+          // Walk the class hierarchy to find whose init() we're in
+          Value ownerVal;
+          if (tableGet(&instance->fieldOwners, fieldName, &ownerVal)) {
+            ObjClass* priorOwner = (ObjClass*)AS_OBJ(ownerVal);
+            // Find current class from the call stack
+            // (you can pass it via the frame or look it up from the receiver's class chain)
+            if (priorOwner != currentInitClass) {
+              runtimeError(
+                "Field '%s' is already defined by superclass '%s'. "
+                "Subclasses cannot reuse superclass field names.",
+                fieldName->chars,
+                priorOwner->name->chars
+              );
+              return INTERPRET_RUNTIME_ERROR;
+            }
+          } else {
+            // First time this field is written in an init() — record ownership
+            tableSet(&instance->fieldOwners, fieldName, OBJ_VAL((Obj*)currentInitClass));
+          }
+        }
+
+        tableSet(&instance->fields, fieldName, peek(0));
+        // ... rest of OP_SET_PROPERTY unchanged
       }
+
       case OP_EQUAL: {
         Value b = pop();
         Value a = pop();

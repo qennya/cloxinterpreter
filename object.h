@@ -89,6 +89,7 @@ typedef struct {
   Obj obj;
   ObjClass* klass;
   Table fields;
+  Table fieldOwners; // maps field name
 } ObjInstance;
 
 typedef struct {

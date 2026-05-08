@@ -144,6 +144,7 @@ static void freeObject(Obj* object) {
     case OBJ_INSTANCE: {
       ObjInstance* instance = (ObjInstance*)object;
       freeTable(&instance->fields);
+      freeTable(&instance->fieldOwners);
       FREE(ObjInstance, object);
       break;
     }
