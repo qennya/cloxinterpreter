@@ -14,7 +14,6 @@ typedef struct {
     Value* slots;
 } CallFrame;
 
-// Add these fields to the VM struct:
 typedef struct {
     CallFrame frames[FRAMES_MAX];
     int frameCount;
@@ -23,21 +22,20 @@ typedef struct {
     Value* stackTop;
     Table globals;
     Table strings;
-    ObjString* initString;
     ObjUpvalue* openUpvalues;
 
-    size_t bytesAllocated;   // <-- NEW
-    size_t nextGC;           // <-- NEW
+    size_t bytesAllocated;
+    size_t nextGC;
     Obj* objects;
-    int grayCount;           // <-- NEW
-    int grayCapacity;        // <-- NEW
-    Obj** grayStack;         // <-- NEW
+    int grayCount;
+    int grayCapacity;
+    Obj** grayStack;
 } VM;
 
 typedef enum {
     INTERPRET_OK,
     INTERPRET_COMPILE_ERROR,
-    INTERPRET_RUNTIME_ERROR
+    INTERPRET_RUNTIME_ERROR,
   } InterpretResult;
 
 extern VM vm;
@@ -45,7 +43,5 @@ extern VM vm;
 void initVM();
 void freeVM();
 InterpretResult interpret(const char* source);
-void push(Value value);
-Value pop();
 
 #endif
