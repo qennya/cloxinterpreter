@@ -24,9 +24,18 @@ static Obj* allocateObject(size_t size, ObjType type) {
   return object;
 }
 
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
+  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod,
+                                        OBJ_BOUND_METHOD);
+  bound->receiver = receiver;
+  bound->method = method;
+  return bound;
+}
+
 ObjClass* newClass(ObjString* name) {
   ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
   klass->name = name;
+  initTable(&klass->methods);
   return klass;
 }
 
@@ -65,7 +74,8 @@ ObjNative* newNative(NativeFn function) {
   return native;
 }
 
-static ObjString* allocateString(char* chars, int length, uint32_t hash) {
+static ObjString* allocateString(char* chars, int length,
+                                  uint32_t hash) {
   ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length = length;
   string->chars = chars;
@@ -85,7 +95,8 @@ static uint32_t hashString(const char* key, int length) {
 
 ObjString* takeString(char* chars, int length) {
   uint32_t hash = hashString(chars, length);
-  ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+  ObjString* interned = tableFindString(&vm.strings, chars, length,
+                                         hash);
   if (interned != NULL) {
     FREE_ARRAY(char, chars, length + 1);
     return interned;
@@ -95,7 +106,8 @@ ObjString* takeString(char* chars, int length) {
 
 ObjString* copyString(const char* chars, int length) {
   uint32_t hash = hashString(chars, length);
-  ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+  ObjString* interned = tableFindString(&vm.strings, chars, length,
+                                         hash);
   if (interned != NULL) return interned;
 
   char* heapChars = ALLOCATE(char, length + 1);
@@ -122,6 +134,9 @@ static void printFunction(ObjFunction* function) {
 
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
+    case OBJ_BOUND_METHOD:
+      printFunction(AS_BOUND_METHOD(value)->method->function);
+      break;
     case OBJ_CLASS:
       printf("%s", AS_CLASS(value)->name->chars);
       break;

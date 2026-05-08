@@ -15,15 +15,10 @@ typedef enum {
     OP_GET_GLOBAL,
     OP_DEFINE_GLOBAL,
     OP_SET_GLOBAL,
-
-    // after OP_SET_GLOBAL, add:
     OP_GET_UPVALUE,
     OP_SET_UPVALUE,
-
-    // after OP_CALL, add:
-    OP_CLOSURE,
-    OP_CLOSE_UPVALUE,
-
+    OP_GET_PROPERTY,
+    OP_SET_PROPERTY,
     OP_EQUAL,
     OP_GREATER,
     OP_LESS,
@@ -38,10 +33,12 @@ typedef enum {
     OP_JUMP_IF_FALSE,
     OP_LOOP,
     OP_CALL,
+    OP_INVOKE,
+    OP_CLOSURE,
+    OP_CLOSE_UPVALUE,
     OP_RETURN,
-    OP_GET_PROPERTY,
-    OP_SET_PROPERTY,
     OP_CLASS,
+    OP_METHOD,
   } OpCode;
 
 typedef struct {
@@ -56,7 +53,5 @@ void initChunk(Chunk* chunk);
 void freeChunk(Chunk* chunk);
 void writeChunk(Chunk* chunk, uint8_t byte, int line);
 int addConstant(Chunk* chunk, Value value);
-
-
 
 #endif
